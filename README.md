@@ -17,7 +17,7 @@ Sign up at [dev2.cloud](https://dev2.cloud) and grab your API key from the [dash
 ```python
 from dev2cloud import Dev2Cloud, SandboxType
 
-client = Dev2Cloud(api_key="d2c_...")
+client = Dev2Cloud(api_key="your-api-key")
 
 sandbox = client.create_sandbox(SandboxType.POSTGRES)
 
