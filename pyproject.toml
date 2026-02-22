@@ -1,0 +1,18 @@
+[project]
+name = "dev2cloud"
+version = "0.1.0"
+description = "Dev2Cloud client library"
+readme = "README.md"
+authors = [
+    { name = "Pasha Kononov", email = "hello@dev2.cloud" }
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.12.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
