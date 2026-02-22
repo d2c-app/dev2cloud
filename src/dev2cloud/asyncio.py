@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio as _asyncio
 import os
 import time
 
@@ -10,7 +11,7 @@ from dev2cloud.models import Sandbox, SandboxStatus, SandboxType
 
 
 class Dev2Cloud:
-    """Sync client for the Dev2Cloud sandbox management API."""
+    """Async client for the Dev2Cloud sandbox management API."""
 
     def __init__(
         self,
@@ -25,7 +26,7 @@ class Dev2Cloud:
             )
 
         self._sandboxes_path = "/api/v1/sandboxes"
-        self._client = httpx.Client(
+        self._client = httpx.AsyncClient(
             base_url=base_url.rstrip("/"),
             headers={"X-Api-Key": resolved_key},
         )
@@ -40,7 +41,7 @@ class Dev2Cloud:
             detail = response.text
         raise Dev2CloudApiError(response.status_code, detail)
 
-    def create_sandbox(
+    async def create_sandbox(
         self,
         sandbox_type: SandboxType,
         *,
@@ -60,9 +61,9 @@ class Dev2Cloud:
             The sandbox with ``running`` status and connection credentials.
 
         Raises:
-            Dev2CloudApiError: On API errors, provision failure, or timeout.
+            Dev2CloudError: On API errors, provision failure, or timeout.
         """
-        response = self._client.post(
+        response = await self._client.post(
             self._sandboxes_path,
             json={"sandbox_type": sandbox_type},
         )
@@ -76,37 +77,37 @@ class Dev2Cloud:
                     0,
                     f"Sandbox {sandbox_id} did not become ready within {timeout}s",
                 )
-            time.sleep(1)
-            sandbox = self.get_sandbox(sandbox_id)
+            await _asyncio.sleep(1)
+            sandbox = await self.get_sandbox(sandbox_id)
             if sandbox.status == SandboxStatus.FAILED:
                 raise Dev2CloudApiError(0, f"Sandbox {sandbox_id} failed to provision")
             if sandbox.status != SandboxStatus.PENDING:
                 return sandbox
 
-    def get_sandbox(self, sandbox_id: str) -> Sandbox:
+    async def get_sandbox(self, sandbox_id: str) -> Sandbox:
         """Get a sandbox by its ID.
 
         Args:
             sandbox_id: Unique identifier of the sandbox.
 
         Raises:
-            Dev2CloudApiError: If the API returns an error response.
+            Dev2CloudError: If the API returns an error response.
         """
-        response = self._client.get(f"{self._sandboxes_path}/{sandbox_id}")
+        response = await self._client.get(f"{self._sandboxes_path}/{sandbox_id}")
         self._raise_on_error(response)
         return Sandbox(**response.json())
 
-    def list_sandboxes(self) -> list[Sandbox]:
+    async def list_sandboxes(self) -> list[Sandbox]:
         """List all active sandboxes for the authenticated user.
 
         Raises:
-            Dev2CloudApiError: If the API returns an error response.
+            Dev2CloudError: If the API returns an error response.
         """
-        response = self._client.get(self._sandboxes_path)
+        response = await self._client.get(self._sandboxes_path)
         self._raise_on_error(response)
         return [Sandbox(**item) for item in response.json()]
 
-    def delete_sandbox(self, sandbox_id: str) -> None:
+    async def delete_sandbox(self, sandbox_id: str) -> None:
         """Permanently delete a sandbox.
 
         Connection credentials are revoked immediately.
@@ -115,12 +116,12 @@ class Dev2Cloud:
             sandbox_id: Unique identifier of the sandbox to delete.
 
         Raises:
-            Dev2CloudApiError: If the API returns an error response.
+            Dev2CloudError: If the API returns an error response.
         """
-        response = self._client.delete(f"{self._sandboxes_path}/{sandbox_id}")
+        response = await self._client.delete(f"{self._sandboxes_path}/{sandbox_id}")
         self._raise_on_error(response)
 
-    def delete_all(self) -> list[str]:
+    async def delete_all(self) -> list[str]:
         """Delete all active sandboxes.
 
         Individual deletion errors are silently ignored so that one
@@ -130,11 +131,11 @@ class Dev2Cloud:
         Returns:
             IDs of successfully deleted sandboxes.
         """
-        sandboxes = self.list_sandboxes()
+        sandboxes = await self.list_sandboxes()
         deleted: list[str] = []
         for sb in sandboxes:
             try:
-                self.delete_sandbox(sb.id)
+                await self.delete_sandbox(sb.id)
                 deleted.append(sb.id)
             except Dev2CloudApiError:
                 pass
