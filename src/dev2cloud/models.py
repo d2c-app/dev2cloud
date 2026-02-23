@@ -39,6 +39,7 @@ class Sandbox(BaseModel):
     id: str
     sandbox_type: SandboxType
     status: SandboxStatus
+    name: Optional[str] = None
     credentials: Union[PostgresCredentials, RedisCredentials, None] = None
     url: Optional[str] = None
 

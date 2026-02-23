@@ -44,6 +44,7 @@ class Dev2Cloud:
         self,
         sandbox_type: SandboxType,
         *,
+        name: str | None = None,
         timeout: float = 180,
     ) -> Sandbox:
         """Create a new sandbox and wait until it is ready.
@@ -52,8 +53,15 @@ class Dev2Cloud:
         status every second until it transitions to ``running`` or
         ``failed``.
 
+        When *name* is provided the endpoint behaves as **get-or-create**:
+        if a running or pending sandbox with the same name already exists
+        it is returned directly; otherwise a new one is created.  A
+        ``409 Conflict`` is raised when the existing sandbox has a
+        different *sandbox_type*.
+
         Args:
             sandbox_type: ``"postgres"`` or ``"redis"``.
+            name: Optional name for get-or-create semantics.
             timeout: Maximum seconds to wait. Defaults to 180.
 
         Returns:
@@ -64,10 +72,18 @@ class Dev2Cloud:
         """
         response = self._client.post(
             self._sandboxes_path,
-            json={"sandbox_type": sandbox_type},
+            json={"sandbox_type": sandbox_type, "name": name},
         )
         self._raise_on_error(response)
-        sandbox_id: str = response.json()["id"]
+
+        data = response.json()
+        sandbox_id: str = data["id"]
+
+        initial = Sandbox(**data)
+        if initial.status == SandboxStatus.FAILED:
+            raise Dev2CloudApiError(0, f"Sandbox {sandbox_id} failed to provision")
+        if initial.status != SandboxStatus.PENDING:
+            return initial
 
         deadline = time.monotonic() + timeout
         while True:
